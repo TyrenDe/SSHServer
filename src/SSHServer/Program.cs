@@ -9,7 +9,6 @@ namespace SSHServer
         {
             Console.CancelKeyPress += Console_CancelKeyPress;
 
-
             Server server = new Server();
             server.Start();
 

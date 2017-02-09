@@ -28,7 +28,6 @@ namespace SSHServer
                 .AddJsonFile("sshserver.json", optional: false)
                 .Build();
 
-
             m_LoggerFactory = new LoggerFactory();
             m_LoggerFactory.AddConsole(m_Configuration.GetSection("Logging"));
             m_Logger = m_LoggerFactory.CreateLogger("SSHServer");
@@ -38,7 +37,6 @@ namespace SSHServer
         {
             // Ensure we are stopped before we start listening
             Stop();
-
 
             m_Logger.LogInformation("Starting up...");
 
