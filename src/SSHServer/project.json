@@ -1,19 +1,26 @@
 {
-  "version": "1.0.0-*",
-  "buildOptions": {
-    "debugType": "portable",
-    "emitEntryPoint": true
-  },
-  "dependencies": {},
-  "frameworks": {
-    "netcoreapp1.1": {
-      "dependencies": {
-        "Microsoft.NETCore.App": {
-          "type": "platform",
-          "version": "1.1.0"
+    "version": "1.0.0-*",
+    "buildOptions": {
+        "debugType": "portable",
+        "emitEntryPoint": true
+    },
+    "dependencies": {
+        "Microsoft.Extensions.Configuration": "1.1.0",
+        "Microsoft.Extensions.Configuration.Binder": "1.1.0",
+        "Microsoft.Extensions.Configuration.FileExtensions": "1.1.0",
+        "Microsoft.Extensions.Configuration.Json": "1.1.0",
+        "Microsoft.Extensions.Logging": "1.1.0",
+        "Microsoft.Extensions.Logging.Console": "1.1.0"
+    },
+    "frameworks": {
+        "netcoreapp1.1": {
+            "dependencies": {
+                "Microsoft.NETCore.App": {
+                    "type": "platform",
+                    "version": "1.1.0"
+                }
+            },
+            "imports": "dnxcore50"
         }
-      },
-      "imports": "dnxcore50"
     }
-  }
 }

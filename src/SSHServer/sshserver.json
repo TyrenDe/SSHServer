@@ -1,0 +1,11 @@
+﻿{
+    "Logging": {
+        "IncludeScopes": true,
+        "LogLevel": {
+            "Default": "Debug",
+            "System": "Information",
+            "Microsoft": "Information"
+        }
+    },
+    "port": 22
+}
