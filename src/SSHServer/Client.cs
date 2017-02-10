@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using SSHServer.Packets;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -67,7 +68,22 @@ namespace SSHServer
 
                 if (m_HasCompletedProtocolVersionExchange)
                 {
-                    // TODO: Read and process packets
+                    try
+                    {
+                        Packet packet = Packet.ReadPacket(m_Socket);
+                        while (packet != null)
+                        {
+                            // TODO: Handle specific packets
+
+                            packet = Packet.ReadPacket(m_Socket);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        m_Logger.LogError(ex.Message);
+                        Disconnect();
+                        return;
+                    }
                 }
             }
         }
