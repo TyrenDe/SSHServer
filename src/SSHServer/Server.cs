@@ -20,6 +20,7 @@ namespace SSHServer
         private ILogger m_Logger;
 
         private TcpListener m_Listener;
+        private List<Client> m_Clients = new List<Client>();
 
         public Server()
         {
@@ -59,12 +60,15 @@ namespace SSHServer
                 Socket socket = acceptTask.Result;
                 m_Logger.LogDebug($"New Client: {socket.RemoteEndPoint.ToString()}");
 
-                // TODO: Create and add client list
+                // Create and add client list
+                m_Clients.Add(new Client(socket, m_LoggerFactory.CreateLogger(socket.RemoteEndPoint.ToString())));
             }
 
-            // TODO: Poll each client for activity
+            // Poll each client for activity
+            m_Clients.ForEach(c => c.Poll());
 
-            // TODO: Remove all disconnected clients
+            // Remove all disconnected clients
+            m_Clients.RemoveAll(c => c.IsConnected == false);
         }
 
         public void Stop()
@@ -73,7 +77,9 @@ namespace SSHServer
             {
                 m_Logger.LogInformation("Shutting down...");
 
-                // TODO: Disconnect clients and clear clients
+                // Disconnect clients and clear clients
+                m_Clients.ForEach(c => c.Disconnect());
+                m_Clients.Clear();
 
                 m_Listener.Stop();
                 m_Listener = null;
