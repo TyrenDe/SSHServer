@@ -12,6 +12,8 @@ namespace SSHServer
 {
     public class Server
     {
+        public const string ProtocolVersionExchange = "SSH-2.0-SSHServer";
+
         private const int DefaultPort = 22;
         private const int ConnectionBacklog = 64;
 
