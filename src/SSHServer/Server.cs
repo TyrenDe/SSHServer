@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using SSHServer.KexAlgorithms;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -23,6 +24,11 @@ namespace SSHServer
 
         private TcpListener m_Listener;
         private List<Client> m_Clients = new List<Client>();
+
+        public static IReadOnlyList<Type> SupportedKexAlgorithms { get; private set; } = new List<Type>()
+        {
+            typeof(DiffieHellmanGroup14SHA1)
+        };
 
         public Server()
         {
@@ -87,6 +93,15 @@ namespace SSHServer
                 m_Listener = null;
 
                 m_Logger.LogInformation("Stopped!");
+            }
+        }
+
+        public static IEnumerable<string> GetNames(IReadOnlyList<Type> types)
+        {
+            foreach (Type type in types)
+            {
+                IAlgorithm algo = Activator.CreateInstance(type) as IAlgorithm;
+                yield return algo.Name;
             }
         }
     }

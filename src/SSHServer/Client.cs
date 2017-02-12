@@ -28,6 +28,7 @@ namespace SSHServer
             m_Logger = logger;
 
             // TODO: Add supported algoritms to m_KexInitServerToClient
+            m_KexInitServerToClient.KexAlgorithms.AddRange(Server.GetNames(Server.SupportedKexAlgorithms));
 
             const int socketBufferSize = 2 * Packet.MaxPacketSize;
             m_Socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.SendBuffer, socketBufferSize);
@@ -84,9 +85,7 @@ namespace SSHServer
                         while (packet != null)
                         {
                             m_Logger.LogDebug($"Received Packet: {packet.PacketType}");
-
-                            // TODO: Handle specific packets
-
+                            HandlePacket(packet);
                             packet = Packet.ReadPacket(m_Socket);
                         }
                     }
@@ -113,6 +112,11 @@ namespace SSHServer
 
                 m_Socket = null;
             }
+        }
+
+        private void HandlePacket(Packet packet)
+        {
+            // TODO: Handle specific packets
         }
 
         private void Send(string message)
