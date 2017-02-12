@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Sockets;
+using System.Reflection;
+using System.Security.Cryptography;
 using System.Threading.Tasks;
 
 namespace SSHServer.Packets
@@ -12,6 +14,24 @@ namespace SSHServer.Packets
         public const int MaxPacketSize = 35000;
 
         private static int s_PacketHeaderSize = 5;
+
+        public abstract PacketType PacketType { get; }
+
+        private static Dictionary<PacketType, Type> s_PacketTypes = new Dictionary<PacketType, Type>();
+
+        static Packet()
+        {
+            var packets = Assembly.GetEntryAssembly().GetTypes().Where(t => typeof(Packet).IsAssignableFrom(t));
+            foreach(var packet in packets)
+            {
+                try
+                {
+                    Packet packetInstance = Activator.CreateInstance(packet) as Packet;
+                    s_PacketTypes[packetInstance.PacketType] = packet;
+                }
+                catch { }
+            }
+        }
 
         public static Packet ReadPacket(Socket socket)
         {
@@ -94,10 +114,72 @@ namespace SSHServer.Packets
 
             using (ByteReader packetReader = new ByteReader(payload))
             {
-                // TODO: Create a packet object and return it
+                PacketType type = (PacketType)packetReader.GetByte();
+
+                if (s_PacketTypes.ContainsKey(type))
+                {
+
+                    Packet packet = Activator.CreateInstance(s_PacketTypes[type]) as Packet;
+                    packet.Load(packetReader);
+                    
+                    // TODO: Store the packet sequence for use later
+
+                    return packet;
+                }
             }
 
+            // TODO: Send an SSH_MSG_UNIMPLEMENTED if we get here
             return null;
         }
+
+        public byte[] ToByteArray()
+        {
+            // TODO: Keep track of the received packet sequence (used for MAC)
+
+            byte[] payload = GetBytes();
+            
+            // TODO: Compress the payload if necessary
+
+            // TODO: Get the block size based on the ClientToServer cipher
+            uint blockSize = 8;
+
+            byte paddingLength = (byte)(blockSize - (payload.Length + 5) % blockSize);
+            if (paddingLength < 4)
+                paddingLength += (byte)blockSize;
+
+            byte[] padding = new byte[paddingLength];
+            RandomNumberGenerator.Create().GetBytes(padding);
+
+            uint packetLength = (uint)(payload.Length + paddingLength + 1);
+
+            using (ByteWriter writer = new ByteWriter())
+            {
+                writer.WriteUInt32(packetLength);
+                writer.WriteByte(paddingLength);
+                writer.WriteRawBytes(payload);
+                writer.WriteRawBytes(padding);
+
+                payload = writer.ToByteArray();
+            }
+
+            // TODO: Encrypt the payload if necessary
+
+            // TODO: Write MAC if necesssary
+
+            return payload;
+        }
+
+        public byte[] GetBytes()
+        {
+            using (ByteWriter writer = new ByteWriter())
+            {
+                writer.WritePacketType(PacketType);
+                InternalGetBytes(writer);
+                return writer.ToByteArray();
+            }
+        }
+
+        protected abstract void Load(ByteReader reader);
+        protected abstract void InternalGetBytes(ByteWriter writer);
     }
 }

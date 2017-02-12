@@ -17,6 +17,8 @@ namespace SSHServer
         private bool m_HasCompletedProtocolVersionExchange = false;
         private string m_ProtocolVersionExchange;
 
+        private KexInit m_KexInitServerToClient = new KexInit();
+
         // We are considered connected if we have a valid socket object
         public bool IsConnected { get { return m_Socket != null; } }
 
@@ -25,11 +27,19 @@ namespace SSHServer
             m_Socket = socket;
             m_Logger = logger;
 
+            // TODO: Add supported algoritms to m_KexInitServerToClient
+
+            const int socketBufferSize = 2 * Packet.MaxPacketSize;
+            m_Socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.SendBuffer, socketBufferSize);
+            m_Socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReceiveBuffer, socketBufferSize);
             m_Socket.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.NoDelay, true);
             m_Socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.DontLinger, true);
 
             // 4.2.Protocol Version Exchange - https://tools.ietf.org/html/rfc4253#section-4.2
             Send($"{Server.ProtocolVersionExchange}\r\n");
+
+            // 7.1.  Algorithm Negotiation - https://tools.ietf.org/html/rfc4253#section-7.1
+            Send(m_KexInitServerToClient);
         }
 
         public void Poll()
@@ -73,6 +83,8 @@ namespace SSHServer
                         Packet packet = Packet.ReadPacket(m_Socket);
                         while (packet != null)
                         {
+                            m_Logger.LogDebug($"Received Packet: {packet.PacketType}");
+
                             // TODO: Handle specific packets
 
                             packet = Packet.ReadPacket(m_Socket);
@@ -115,6 +127,11 @@ namespace SSHServer
                 return;
 
             m_Socket.Send(data);
+        }
+
+        public void Send(Packet packet)
+        {
+            Send(packet.ToByteArray());
         }
 
         // Read 1 byte from the socket until we find "\r\n"
