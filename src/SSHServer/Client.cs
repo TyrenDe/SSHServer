@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using Microsoft.CSharp.RuntimeBinder;
+using Microsoft.Extensions.Logging;
 using SSHServer.Packets;
 using System;
 using System.Collections.Generic;
@@ -18,6 +19,10 @@ namespace SSHServer
         private string m_ProtocolVersionExchange;
 
         private KexInit m_KexInitServerToClient = new KexInit();
+        private KexInit m_KexInitClientToServer = null;
+
+        private ExchangeContext m_ActiveExchangeContext = new ExchangeContext();
+        private ExchangeContext m_PendingExchangeContext = new ExchangeContext();
 
         // We are considered connected if we have a valid socket object
         public bool IsConnected { get { return m_Socket != null; } }
@@ -122,7 +127,46 @@ namespace SSHServer
 
         private void HandlePacket(Packet packet)
         {
-            // TODO: Handle specific packets
+            try
+            {
+                HandleSpecificPacket((dynamic)packet);
+            }
+            catch(RuntimeBinderException)
+            {
+                // TODO: Send an SSH_MSG_UNIMPLEMENTED if we get here
+            }
+        }
+
+        private void HandleSpecificPacket(KexInit packet)
+        {
+            m_Logger.LogDebug("Received KexInit");
+
+            if (m_PendingExchangeContext == null)
+            {
+                m_Logger.LogDebug("Re-exchanging keys!");
+                m_PendingExchangeContext = new ExchangeContext();
+                Send(m_KexInitServerToClient);
+            }
+
+            m_KexInitClientToServer = packet;
+
+            m_PendingExchangeContext.KexAlgorithm = packet.PickKexAlgorithm();
+            m_PendingExchangeContext.HostKeyAlgorithm = packet.PickHostKeyAlgorithm();
+            m_PendingExchangeContext.CipherClientToServer = packet.PickCipherClientToServer();
+            m_PendingExchangeContext.CipherServerToClient = packet.PickCipherServerToClient();
+            m_PendingExchangeContext.MACAlgorithmClientToServer = packet.PickMACAlgorithmClientToServer();
+            m_PendingExchangeContext.MACAlgorithmServerToClient = packet.PickMACAlgorithmServerToClient();
+            m_PendingExchangeContext.CompressionClientToServer = packet.PickCompressionAlgorithmClientToServer();
+            m_PendingExchangeContext.CompressionServerToClient = packet.PickCompressionAlgorithmServerToClient();
+
+            m_Logger.LogDebug($"Selected KexAlgorithm: {m_PendingExchangeContext.KexAlgorithm.Name}");
+            m_Logger.LogDebug($"Selected HostKeyAlgorithm: {m_PendingExchangeContext.HostKeyAlgorithm.Name}");
+            m_Logger.LogDebug($"Selected CipherClientToServer: {m_PendingExchangeContext.CipherClientToServer.Name}");
+            m_Logger.LogDebug($"Selected CipherServerToClient: {m_PendingExchangeContext.CipherServerToClient.Name}");
+            m_Logger.LogDebug($"Selected MACAlgorithmClientToServer: {m_PendingExchangeContext.MACAlgorithmClientToServer.Name}");
+            m_Logger.LogDebug($"Selected MACAlgorithmServerToClient: {m_PendingExchangeContext.MACAlgorithmServerToClient.Name}");
+            m_Logger.LogDebug($"Selected CompressionClientToServer: {m_PendingExchangeContext.CompressionClientToServer.Name}");
+            m_Logger.LogDebug($"Selected CompressionServerToClient: {m_PendingExchangeContext.CompressionServerToClient.Name}");
         }
 
         private void Send(string message)

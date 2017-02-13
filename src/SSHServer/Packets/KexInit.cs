@@ -1,4 +1,9 @@
-﻿using System;
+﻿using SSHServer.Ciphers;
+using SSHServer.Compressions;
+using SSHServer.HostKeyAlgorithms;
+using SSHServer.KexAlgorithms;
+using SSHServer.MACAlgorithms;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography;
@@ -69,6 +74,134 @@ namespace SSHServer.Packets
               uint32       0 (reserved for future extension)
             */
             uint reserved = reader.GetUInt32();
+        }
+
+        public IKexAlgorithm PickKexAlgorithm()
+        {
+            foreach (string algo in this.KexAlgorithms)
+            {
+                IKexAlgorithm selectedAlgo = Server.GetType<IKexAlgorithm>(Server.SupportedKexAlgorithms, algo);
+                if (selectedAlgo != null)
+                {
+                    return selectedAlgo;
+                }
+            }
+
+            // If no algorithm satisfying all these conditions can be found, the
+            // connection fails, and both sides MUST disconnect.
+            throw new NotSupportedException("Could not find a shared Kex Algorithm");
+        }
+
+        public IHostKeyAlgorithm PickHostKeyAlgorithm()
+        {
+            foreach (string algo in this.ServerHostKeyAlgorithms)
+            {
+                IHostKeyAlgorithm selectedAlgo = Server.GetType<IHostKeyAlgorithm>(Server.SupportedHostKeyAlgorithms, algo);
+                if (selectedAlgo != null)
+                {
+                    return selectedAlgo;
+                }
+            }
+
+            // If no algorithm satisfying all these conditions can be found, the
+            // connection fails, and both sides MUST disconnect.
+            throw new NotSupportedException("Could not find a shared Host Key Algorithm");
+        }
+
+        public ICipher PickCipherClientToServer()
+        {
+            foreach (string algo in this.EncryptionAlgorithmsClientToServer)
+            {
+                ICipher selectedCipher = Server.GetType<ICipher>(Server.SupportedCiphers, algo);
+                if (selectedCipher != null)
+                {
+                    return selectedCipher;
+                }
+            }
+
+            // If no algorithm satisfying all these conditions can be found, the
+            // connection fails, and both sides MUST disconnect.
+            throw new NotSupportedException("Could not find a shared Client-To-Server Cipher Algorithm");
+        }
+
+        public ICipher PickCipherServerToClient()
+        {
+            foreach (string algo in this.EncryptionAlgorithmsServerToClient)
+            {
+                ICipher selectedCipher = Server.GetType<ICipher>(Server.SupportedCiphers, algo);
+                if (selectedCipher != null)
+                {
+                    return selectedCipher;
+                }
+            }
+
+            // If no algorithm satisfying all these conditions can be found, the
+            // connection fails, and both sides MUST disconnect.
+            throw new NotSupportedException("Could not find a shared Server-To-Client Cipher Algorithm");
+        }
+
+        public IMACAlgorithm PickMACAlgorithmClientToServer()
+        {
+            foreach (string algo in this.MacAlgorithmsClientToServer)
+            {
+                IMACAlgorithm selectedAlgo = Server.GetType<IMACAlgorithm>(Server.SupportedMACAlgorithms, algo);
+                if (selectedAlgo != null)
+                {
+                    return selectedAlgo;
+                }
+            }
+
+            // If no algorithm satisfying all these conditions can be found, the
+            // connection fails, and both sides MUST disconnect.
+            throw new NotSupportedException("Could not find a shared Client-To-Server MAC Algorithm");
+        }
+
+        public IMACAlgorithm PickMACAlgorithmServerToClient()
+        {
+            foreach (string algo in this.MacAlgorithmsServerToClient)
+            {
+                IMACAlgorithm selectedAlgo = Server.GetType<IMACAlgorithm>(Server.SupportedMACAlgorithms, algo);
+                if (selectedAlgo != null)
+                {
+                    return selectedAlgo;
+                }
+            }
+
+            // If no algorithm satisfying all these conditions can be found, the
+            // connection fails, and both sides MUST disconnect.
+            throw new NotSupportedException("Could not find a shared Server-To-Client MAC Algorithm");
+        }
+
+        public ICompression PickCompressionAlgorithmClientToServer()
+        {
+            foreach (string algo in this.CompressionAlgorithmsClientToServer)
+            {
+                ICompression selectedAlgo = Server.GetType<ICompression>(Server.SupportedCompressions, algo);
+                if (selectedAlgo != null)
+                {
+                    return selectedAlgo;
+                }
+            }
+
+            // If no algorithm satisfying all these conditions can be found, the
+            // connection fails, and both sides MUST disconnect.
+            throw new NotSupportedException("Could not find a shared Client-To-Server Compresion Algorithm");
+        }
+
+        public ICompression PickCompressionAlgorithmServerToClient()
+        {
+            foreach (string algo in this.CompressionAlgorithmsServerToClient)
+            {
+                ICompression selectedAlgo = Server.GetType<ICompression>(Server.SupportedCompressions, algo);
+                if (selectedAlgo != null)
+                {
+                    return selectedAlgo;
+                }
+            }
+
+            // If no algorithm satisfying all these conditions can be found, the
+            // connection fails, and both sides MUST disconnect.
+            throw new NotSupportedException("Could not find a shared Server-To-Client Compresion Algorithm");
         }
     }
 }
