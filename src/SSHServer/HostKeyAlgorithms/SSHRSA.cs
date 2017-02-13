@@ -43,10 +43,10 @@ namespace SSHServer.HostKeyAlgorithms
 
         public byte[] CreateKeyAndCertificatesData()
         {
-            //    The "ssh-rsa" key format has the following specific encoding:
-            //          string    "ssh-rsa"
-            //          mpint e
-            //          mpint n
+            // The "ssh-rsa" key format has the following specific encoding:
+            //      string    "ssh-rsa"
+            //      mpint e
+            //      mpint n
             RSAParameters parameters = m_RSA.ExportParameters(false);
 
             using (ByteWriter writer = new ByteWriter())

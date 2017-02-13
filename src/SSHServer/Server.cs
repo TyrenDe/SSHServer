@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using SSHServer.Ciphers;
 using SSHServer.HostKeyAlgorithms;
 using SSHServer.KexAlgorithms;
 using System;
@@ -36,6 +37,11 @@ namespace SSHServer
         public static IReadOnlyList<Type> SupportedHostKeyAlgorithms { get; private set; } = new List<Type>()
         {
             typeof(SSHRSA)
+        };
+
+        public static IReadOnlyList<Type> SupportedCiphers { get; private set; } = new List<Type>()
+        {
+            typeof(TripleDESCBC)
         };
 
         public Server()
