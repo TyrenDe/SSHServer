@@ -29,6 +29,7 @@ namespace SSHServer
 
             // TODO: Add supported algoritms to m_KexInitServerToClient
             m_KexInitServerToClient.KexAlgorithms.AddRange(Server.GetNames(Server.SupportedKexAlgorithms));
+            m_KexInitServerToClient.ServerHostKeyAlgorithms.AddRange(Server.GetNames(Server.SupportedHostKeyAlgorithms));
 
             const int socketBufferSize = 2 * Packet.MaxPacketSize;
             m_Socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.SendBuffer, socketBufferSize);

@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using SSHServer.HostKeyAlgorithms;
 using SSHServer.KexAlgorithms;
 using System;
 using System.Collections.Generic;
@@ -25,9 +26,16 @@ namespace SSHServer
         private TcpListener m_Listener;
         private List<Client> m_Clients = new List<Client>();
 
+        private static Dictionary<string, string> s_HostKeys = new Dictionary<string, string>();
+
         public static IReadOnlyList<Type> SupportedKexAlgorithms { get; private set; } = new List<Type>()
         {
             typeof(DiffieHellmanGroup14SHA1)
+        };
+
+        public static IReadOnlyList<Type> SupportedHostKeyAlgorithms { get; private set; } = new List<Type>()
+        {
+            typeof(SSHRSA)
         };
 
         public Server()
@@ -40,6 +48,12 @@ namespace SSHServer
             m_LoggerFactory = new LoggerFactory();
             m_LoggerFactory.AddConsole(m_Configuration.GetSection("Logging"));
             m_Logger = m_LoggerFactory.CreateLogger("SSHServer");
+
+            IConfigurationSection keys = m_Configuration.GetSection("keys");
+            foreach (IConfigurationSection key in keys.GetChildren())
+            {
+                s_HostKeys[key.Key] = key.Value;
+            }
         }
 
         public void Start()
@@ -94,6 +108,25 @@ namespace SSHServer
 
                 m_Logger.LogInformation("Stopped!");
             }
+        }
+
+        public static T GetType<T>(IReadOnlyList<Type> types, string selected) where T : class
+        {
+            foreach (Type type in types)
+            {
+                IAlgorithm algo = Activator.CreateInstance(type) as IAlgorithm;
+                if (algo.Name.Equals(selected, StringComparison.OrdinalIgnoreCase))
+                {
+                    if (algo is IHostKeyAlgorithm)
+                    {
+                        ((IHostKeyAlgorithm)algo).ImportKey(s_HostKeys[algo.Name]);
+                    }
+
+                    return algo as T;
+                }
+            }
+
+            return default(T);
         }
 
         public static IEnumerable<string> GetNames(IReadOnlyList<Type> types)
