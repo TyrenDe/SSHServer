@@ -43,6 +43,13 @@ namespace SSHServer.Ciphers
             }
         }
 
+        public TripleDESCBC()
+        {
+            m_3DES.KeySize = 192;
+            m_3DES.Padding = PaddingMode.None;
+            m_3DES.Mode = CipherMode.CBC;
+        }
+
         public byte[] Decrypt(byte[] data)
         {
             return PerformTransform(m_Decryptor, data);
@@ -55,11 +62,8 @@ namespace SSHServer.Ciphers
 
         public void SetKey(byte[] key, byte[] iv)
         {
-            m_3DES.KeySize = 192;
             m_3DES.Key = key;
             m_3DES.IV = iv;
-            m_3DES.Padding = PaddingMode.None;
-            m_3DES.Mode = CipherMode.CBC;
 
             m_Decryptor = m_3DES.CreateDecryptor(key, iv);
             m_Encryptor = m_3DES.CreateEncryptor(key, iv);
@@ -70,15 +74,10 @@ namespace SSHServer.Ciphers
             if (transform == null)
                 throw new InvalidOperationException("SetKey must be called before attempting to encrypt or decrypt data.");
 
-            using (MemoryStream memoryStream = new MemoryStream())
-            {
-                using (CryptoStream cryptoStream = new CryptoStream(memoryStream, transform, CryptoStreamMode.Write))
-                {
-                    cryptoStream.Write(data, 0, data.Length);
-                    cryptoStream.FlushFinalBlock();
-                    return memoryStream.ToArray();
-                }
-            }
+            // I found a problem with using the CryptoStream here, but this works...
+            var output = new byte[data.Length];
+            transform.TransformBlock(data, 0, data.Length, output, 0);
+            return output;
         }
     }
 }

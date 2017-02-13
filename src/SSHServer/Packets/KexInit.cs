@@ -56,7 +56,7 @@ namespace SSHServer.Packets
             writer.WriteUInt32(0);
         }
 
-        protected override void Load(ByteReader reader)
+        public override void Load(ByteReader reader)
         {
             Cookie = reader.GetBytes(16);
             KexAlgorithms = reader.GetNameList();

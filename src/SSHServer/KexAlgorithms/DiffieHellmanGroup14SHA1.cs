@@ -63,6 +63,11 @@ namespace SSHServer.KexAlgorithms
             if (BitConverter.IsLittleEndian)
                 key = key.Reverse().ToArray();
 
+            if ((key.Length > 1) && (key[0] == 0x00))
+            {
+                key = key.Skip(1).ToArray();
+            }
+
             return key;
         }
 
@@ -80,6 +85,11 @@ namespace SSHServer.KexAlgorithms
             byte[] decrypted = BigInteger.ModPow(e, m_Y, s_P).ToByteArray();
             if (BitConverter.IsLittleEndian)
                 decrypted = decrypted.Reverse().ToArray();
+
+            if ((decrypted.Length > 1) && (decrypted[0] == 0x00))
+            {
+                decrypted = decrypted.Skip(1).ToArray();
+            }
 
             return decrypted;
         }
