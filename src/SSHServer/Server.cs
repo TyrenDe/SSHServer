@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using SSHServer.Ciphers;
+using SSHServer.Compressions;
 using SSHServer.HostKeyAlgorithms;
 using SSHServer.KexAlgorithms;
 using SSHServer.MACAlgorithms;
@@ -48,6 +49,11 @@ namespace SSHServer
         public static IReadOnlyList<Type> SupportedMACAlgorithms { get; private set; } = new List<Type>()
         {
             typeof(HMACSHA1)
+        };
+
+        public static IReadOnlyList<Type> SupportedCompressions { get; private set; } = new List<Type>()
+        {
+            typeof(NoCompression)
         };
 
         public Server()
