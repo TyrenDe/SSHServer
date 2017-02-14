@@ -28,6 +28,9 @@ namespace SSHServer
         private int m_CurrentSentPacketNumber = -1;
         private int m_CurrentReceivedPacketNumber = -1;
 
+        private long m_TotalBytesTransferred = 0;
+        private DateTime m_KeyTimeout = DateTime.UtcNow.AddHours(1);
+
         private ExchangeContext m_ActiveExchangeContext = new ExchangeContext();
         private ExchangeContext m_PendingExchangeContext = new ExchangeContext();
 
@@ -86,6 +89,7 @@ namespace SSHServer
                         {
                             // TODO: Consider processing Protocol Version Exchange for validity
                             m_Logger.LogDebug($"Received ProtocolVersionExchange: {m_ProtocolVersionExchange}");
+                            ValidateProtocolVersionExchange();
                         }
                     }
                     catch (Exception)
@@ -106,6 +110,8 @@ namespace SSHServer
                             HandlePacket(packet);
                             packet = ReadPacket();
                         }
+
+                        ConsiderReExchange();
                     }
                     catch (Exception ex)
                     {
@@ -138,9 +144,15 @@ namespace SSHServer
             {
                 HandleSpecificPacket((dynamic)packet);
             }
-            catch(RuntimeBinderException)
+            catch (RuntimeBinderException)
             {
-                // TODO: Send an SSH_MSG_UNIMPLEMENTED if we get here
+                m_Logger.LogWarning($"Unhandled packet type: {packet.PacketType}");
+
+                Unimplemented unimplemented = new Unimplemented()
+                {
+                    RejectedPacketNumber = packet.PacketSequence
+                };
+                Send(unimplemented);
             }
         }
 
@@ -150,7 +162,7 @@ namespace SSHServer
 
             if (m_PendingExchangeContext == null)
             {
-                m_Logger.LogDebug("Re-exchanging keys!");
+                m_Logger.LogDebug("Trigger re-exchange from client");
                 m_PendingExchangeContext = new ExchangeContext();
                 Send(m_KexInitServerToClient);
             }
@@ -275,6 +287,10 @@ namespace SSHServer
 
             m_ActiveExchangeContext = m_PendingExchangeContext;
             m_PendingExchangeContext = null;
+
+            // Reset re-exchange values
+            m_TotalBytesTransferred = 0;
+            m_KeyTimeout = DateTime.UtcNow.AddHours(1);
         }
 
         private byte[] ComputeExchangeHash(IKexAlgorithm kexAlgorithm, byte[] hostKeyAndCerts, byte[] clientExchangeValue, byte[] serverExchangeValue, byte[] sharedSecret)
@@ -358,6 +374,9 @@ namespace SSHServer
         {
             if (!IsConnected)
                 return;
+
+            // Increase bytes transferred
+            m_TotalBytesTransferred += data.Length;
 
             m_Socket.Send(data);
         }
@@ -496,7 +515,8 @@ namespace SSHServer
             uint payloadLength = packetLength - paddingLength - 1;
             byte[] fullPacket = firstBlock.Concat(restOfPacket).ToArray();
 
-            // TODO: Track total bytes read
+            // Track total bytes read
+            m_TotalBytesTransferred += fullPacket.Length;
 
             byte[] payload = fullPacket.Skip(Packet.PacketHeaderSize).Take((int)(packetLength - paddingLength - 1)).ToArray();
 
@@ -544,10 +564,51 @@ namespace SSHServer
                     packet.PacketSequence = packetNumber;
                     return packet;
                 }
+
+                m_Logger.LogWarning($"Unimplemented packet type: {type}");
+
+                Unimplemented unimplemented = new Unimplemented()
+                {
+                    RejectedPacketNumber = packetNumber
+                };
+                Send(unimplemented);
             }
 
-            // TODO: Send an SSH_MSG_UNIMPLEMENTED if we get here
             return null;
+        }
+
+        private void ConsiderReExchange()
+        {
+            const long OneGB = (1024 * 1024 * 1024);
+            if ((m_TotalBytesTransferred > OneGB) || (m_KeyTimeout < DateTime.UtcNow))
+            {
+                // Time to get new keys!
+                m_TotalBytesTransferred = 0;
+                m_KeyTimeout = DateTime.UtcNow.AddHours(1);
+
+                m_Logger.LogDebug("Trigger re-exchange from server");
+                m_PendingExchangeContext = new ExchangeContext();
+                Send(m_KexInitServerToClient);
+            }
+        }
+
+        private void ValidateProtocolVersionExchange()
+        {
+            // https://tools.ietf.org/html/rfc4253#section-4.2
+            //SSH-protoversion-softwareversion SP comments
+
+            string[] pveParts = m_ProtocolVersionExchange.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            if (pveParts.Length == 0)
+                throw new UnauthorizedAccessException("Invalid Protocol Version Exchange was received - No Data");
+
+            string[] versionParts = pveParts[0].Split(new char[] { '-' }, StringSplitOptions.RemoveEmptyEntries);
+            if (versionParts.Length < 3)
+                throw new UnauthorizedAccessException($"Invalid Protocol Version Exchange was received - Not enough dashes - {pveParts[0]}");
+
+            if (versionParts[1] != "2.0")
+                throw new UnauthorizedAccessException($"Invalid Protocol Version Exchange was received - Unsupported Version - {versionParts[1]}");
+
+            // If we get here, all is well!
         }
     }
 }
