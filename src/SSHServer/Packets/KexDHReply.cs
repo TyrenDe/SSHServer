@@ -32,7 +32,7 @@ namespace SSHServer.Packets
         public override void Load(ByteReader reader)
         {
             // Client never sends this!
-            throw new InvalidOperationException("SSH Client should never send a SSH_MSG_KEXDH_REPLY message");
+            throw new SSHServerException(DisconnectReason.SSH_DISCONNECT_KEY_EXCHANGE_FAILED, "SSH Client should never send a SSH_MSG_KEXDH_REPLY message");
         }
     }
 }

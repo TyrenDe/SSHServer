@@ -89,7 +89,7 @@ namespace SSHServer.Packets
 
             // If no algorithm satisfying all these conditions can be found, the
             // connection fails, and both sides MUST disconnect.
-            throw new NotSupportedException("Could not find a shared Kex Algorithm");
+            throw new SSHServerException(DisconnectReason.SSH_DISCONNECT_KEY_EXCHANGE_FAILED, "Could not find a shared Kex Algorithm");
         }
 
         public IHostKeyAlgorithm PickHostKeyAlgorithm()
@@ -105,7 +105,7 @@ namespace SSHServer.Packets
 
             // If no algorithm satisfying all these conditions can be found, the
             // connection fails, and both sides MUST disconnect.
-            throw new NotSupportedException("Could not find a shared Host Key Algorithm");
+            throw new SSHServerException(DisconnectReason.SSH_DISCONNECT_KEY_EXCHANGE_FAILED, "Could not find a shared Host Key Algorithm");
         }
 
         public ICipher PickCipherClientToServer()
@@ -121,7 +121,7 @@ namespace SSHServer.Packets
 
             // If no algorithm satisfying all these conditions can be found, the
             // connection fails, and both sides MUST disconnect.
-            throw new NotSupportedException("Could not find a shared Client-To-Server Cipher Algorithm");
+            throw new SSHServerException(DisconnectReason.SSH_DISCONNECT_KEY_EXCHANGE_FAILED, "Could not find a shared Client-To-Server Cipher Algorithm");
         }
 
         public ICipher PickCipherServerToClient()
@@ -137,7 +137,7 @@ namespace SSHServer.Packets
 
             // If no algorithm satisfying all these conditions can be found, the
             // connection fails, and both sides MUST disconnect.
-            throw new NotSupportedException("Could not find a shared Server-To-Client Cipher Algorithm");
+            throw new SSHServerException(DisconnectReason.SSH_DISCONNECT_KEY_EXCHANGE_FAILED, "Could not find a shared Server-To-Client Cipher Algorithm");
         }
 
         public IMACAlgorithm PickMACAlgorithmClientToServer()
@@ -153,7 +153,7 @@ namespace SSHServer.Packets
 
             // If no algorithm satisfying all these conditions can be found, the
             // connection fails, and both sides MUST disconnect.
-            throw new NotSupportedException("Could not find a shared Client-To-Server MAC Algorithm");
+            throw new SSHServerException(DisconnectReason.SSH_DISCONNECT_KEY_EXCHANGE_FAILED, "Could not find a shared Client-To-Server MAC Algorithm");
         }
 
         public IMACAlgorithm PickMACAlgorithmServerToClient()
@@ -169,7 +169,7 @@ namespace SSHServer.Packets
 
             // If no algorithm satisfying all these conditions can be found, the
             // connection fails, and both sides MUST disconnect.
-            throw new NotSupportedException("Could not find a shared Server-To-Client MAC Algorithm");
+            throw new SSHServerException(DisconnectReason.SSH_DISCONNECT_KEY_EXCHANGE_FAILED, "Could not find a shared Server-To-Client MAC Algorithm");
         }
 
         public ICompression PickCompressionAlgorithmClientToServer()
@@ -185,7 +185,7 @@ namespace SSHServer.Packets
 
             // If no algorithm satisfying all these conditions can be found, the
             // connection fails, and both sides MUST disconnect.
-            throw new NotSupportedException("Could not find a shared Client-To-Server Compresion Algorithm");
+            throw new SSHServerException(DisconnectReason.SSH_DISCONNECT_KEY_EXCHANGE_FAILED, "Could not find a shared Client-To-Server Compresion Algorithm");
         }
 
         public ICompression PickCompressionAlgorithmServerToClient()
@@ -201,7 +201,7 @@ namespace SSHServer.Packets
 
             // If no algorithm satisfying all these conditions can be found, the
             // connection fails, and both sides MUST disconnect.
-            throw new NotSupportedException("Could not find a shared Server-To-Client Compresion Algorithm");
+            throw new SSHServerException(DisconnectReason.SSH_DISCONNECT_KEY_EXCHANGE_FAILED, "Could not find a shared Server-To-Client Compresion Algorithm");
         }
     }
 }

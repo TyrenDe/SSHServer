@@ -1,4 +1,5 @@
-﻿using System;
+﻿using SSHServer.Packets;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -72,7 +73,7 @@ namespace SSHServer.Ciphers
         private byte[] PerformTransform(ICryptoTransform transform, byte[] data)
         {
             if (transform == null)
-                throw new InvalidOperationException("SetKey must be called before attempting to encrypt or decrypt data.");
+                throw new SSHServerException(DisconnectReason.SSH_DISCONNECT_KEY_EXCHANGE_FAILED, "SetKey must be called before attempting to encrypt or decrypt data.");
 
             // I found a problem with using the CryptoStream here, but this works...
             var output = new byte[data.Length];

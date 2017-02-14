@@ -75,7 +75,7 @@ namespace SSHServer
                 int read = m_Socket.Available;
                 if (read < 1)
                 {
-                    Disconnect();
+                    Disconnect(DisconnectReason.SSH_DISCONNECT_CONNECTION_LOST, "The client disconnected.");
                     return;
                 }
 
@@ -94,7 +94,7 @@ namespace SSHServer
                     }
                     catch (Exception)
                     {
-                        Disconnect();
+                        Disconnect(DisconnectReason.SSH_DISCONNECT_PROTOCOL_VERSION_NOT_SUPPORTED, "Failed to get the protocol version exchange.");
                         return;
                     }
                 }
@@ -113,21 +113,35 @@ namespace SSHServer
 
                         ConsiderReExchange();
                     }
-                    catch (Exception ex)
+                    catch (SSHServerException ex)
                     {
                         m_Logger.LogError(ex.Message);
-                        Disconnect();
+                        Disconnect(ex.Reason, ex.Message);
                         return;
                     }
                 }
             }
         }
 
-        public void Disconnect()
+        public void Disconnect(DisconnectReason reason, string message)
         {
-            m_Logger.LogDebug($"Disconnected");
+            m_Logger.LogDebug($"Disconnected - {reason} - {message}");
             if (m_Socket != null)
             {
+                if (reason != DisconnectReason.None)
+                {
+                    try
+                    {
+                        Disconnect disconnect = new Disconnect()
+                        {
+                            Reason = reason,
+                            Description = message
+                        };
+                        Send(disconnect);
+                    }
+                    catch (Exception) { }
+                }
+
                 try
                 {
                     m_Socket.Shutdown(SocketShutdown.Both);
@@ -194,7 +208,7 @@ namespace SSHServer
 
             if ((m_PendingExchangeContext == null) || (m_PendingExchangeContext.KexAlgorithm == null))
             {
-                throw new InvalidOperationException("Server did not receive SSH_MSG_KEX_INIT as expected.");
+                throw new SSHServerException(DisconnectReason.SSH_DISCONNECT_PROTOCOL_ERROR, "Server did not receive SSH_MSG_KEX_INIT as expected.");
             }
 
             // 1. C generates a random number x (1 < x < q) and computes e = g ^ x mod p.  C sends e to S.
@@ -476,7 +490,7 @@ namespace SSHServer
             byte[] firstBlock = new byte[blockSize];
             int bytesRead = m_Socket.Receive(firstBlock);
             if (bytesRead != blockSize)
-                throw new Exception("Failed to read from socket.");
+                throw new SSHServerException(DisconnectReason.SSH_DISCONNECT_CONNECTION_LOST, "Failed to read from socket.");
 
             firstBlock = m_ActiveExchangeContext.CipherClientToServer.Decrypt(firstBlock);
 
@@ -490,7 +504,7 @@ namespace SSHServer
                 //     'packet_length' field itself.
                 packetLength = reader.GetUInt32();
                 if (packetLength > Packet.MaxPacketSize)
-                    throw new Exception($"Client tried to send a packet bigger than MaxPacketSize ({Packet.MaxPacketSize} bytes): {packetLength} bytes");
+                    throw new SSHServerException(DisconnectReason.SSH_DISCONNECT_PROTOCOL_ERROR, $"Client tried to send a packet bigger than MaxPacketSize ({Packet.MaxPacketSize} bytes): {packetLength} bytes");
 
                 // byte      padding_length
                 // padding_length
@@ -508,7 +522,7 @@ namespace SSHServer
             byte[] restOfPacket = new byte[bytesToRead];
             bytesRead = m_Socket.Receive(restOfPacket);
             if (bytesRead != bytesToRead)
-                throw new Exception("Failed to read from socket.");
+                throw new SSHServerException(DisconnectReason.SSH_DISCONNECT_CONNECTION_LOST, "Failed to read from socket.");
 
             restOfPacket = m_ActiveExchangeContext.CipherClientToServer.Decrypt(restOfPacket);
 
@@ -541,12 +555,12 @@ namespace SSHServer
                 byte[] clientMac = new byte[m_ActiveExchangeContext.MACAlgorithmClientToServer.DigestLength];
                 bytesRead = m_Socket.Receive(clientMac);
                 if (bytesRead != m_ActiveExchangeContext.MACAlgorithmClientToServer.DigestLength)
-                    throw new Exception("Failed to read from socket.");
+                    throw new SSHServerException(DisconnectReason.SSH_DISCONNECT_CONNECTION_LOST, "Failed to read from socket.");
 
                 var mac = m_ActiveExchangeContext.MACAlgorithmClientToServer.ComputeHash(packetNumber, fullPacket);
                 if (!clientMac.SequenceEqual(mac))
                 {
-                    throw new UnauthorizedAccessException("MAC from client is invalid");
+                    throw new SSHServerException(DisconnectReason.SSH_DISCONNECT_MAC_ERROR, "MAC from client is invalid");
                 }
             }
 

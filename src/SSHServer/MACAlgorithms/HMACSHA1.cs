@@ -1,4 +1,5 @@
-﻿using System;
+﻿using SSHServer.Packets;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -40,7 +41,7 @@ namespace SSHServer.MACAlgorithms
         public byte[] ComputeHash(uint packetNumber, byte[] data)
         {
             if (m_HMAC == null)
-                throw new InvalidOperationException("SetKey must be called before attempting to ComputeHash.");
+                throw new SSHServerException(DisconnectReason.SSH_DISCONNECT_KEY_EXCHANGE_FAILED, "SetKey must be called before attempting to ComputeHash.");
 
             using (ByteWriter writer = new ByteWriter())
             {

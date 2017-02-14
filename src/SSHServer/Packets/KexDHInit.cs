@@ -20,7 +20,7 @@ namespace SSHServer.Packets
         protected override void InternalGetBytes(ByteWriter writer)
         {
             // Server never sends this
-            throw new InvalidOperationException("SSH Server should never send a SSH_MSG_KEXDH_INIT message");
+            throw new SSHServerException(DisconnectReason.SSH_DISCONNECT_KEY_EXCHANGE_FAILED, "SSH Server should never send a SSH_MSG_KEXDH_INIT message");
         }
 
         public override void Load(ByteReader reader)

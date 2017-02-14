@@ -5,6 +5,7 @@ using SSHServer.Compressions;
 using SSHServer.HostKeyAlgorithms;
 using SSHServer.KexAlgorithms;
 using SSHServer.MACAlgorithms;
+using SSHServer.Packets;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -118,7 +119,7 @@ namespace SSHServer
                 m_Logger.LogInformation("Shutting down...");
 
                 // Disconnect clients and clear clients
-                m_Clients.ForEach(c => c.Disconnect());
+                m_Clients.ForEach(c => c.Disconnect(DisconnectReason.SSH_DISCONNECT_BY_APPLICATION, "The server is shutting down."));
                 m_Clients.Clear();
 
                 m_Listener.Stop();
