@@ -1,0 +1,9 @@
+﻿{
+    "port": 22,
+    "keys": [
+        {
+            "algorithm": "ssh-rsa",
+            "key": ""
+        }
+    ]
+}
