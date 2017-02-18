@@ -1,6 +1,7 @@
 ﻿import { SSHLogger } from "./SSHLogger";
 import { Configuration } from "./Configuration";
 import { Client } from "./Client";
+import * as Exceptions from "./SSHServerException";
 
 import net = require("net");
 import util = require("util");
@@ -58,7 +59,9 @@ export class Server {
 
             // disconnect clients and clear clients
             for (let client of this.m_Clients) {
-                client.disconnect();
+                client.disconnect(
+                    Exceptions.DisconnectReason.SSH_DISCONNECT_BY_APPLICATION,
+                    "The server is shutting down.");
             }
 
             this.m_Clients = [];

@@ -2,6 +2,7 @@
 import { PacketType } from "./PacketType";
 import { ByteReader } from "../ByteReader";
 import { ByteWriter } from "../ByteWriter";
+import * as Exceptions from "../SSHServerException";
 
 export class KexDHReply extends Packet {
     public serverHostKey: Buffer;
@@ -23,6 +24,8 @@ export class KexDHReply extends Packet {
 
     public load(reader: ByteReader) {
         // Client never sends this!
-        throw new Error("SSH Client should never send a SSH_MSG_KEXDH_REPLY message");
+        throw new Exceptions.SSHServerException(
+            Exceptions.DisconnectReason.SSH_DISCONNECT_KEY_EXCHANGE_FAILED,
+            "SSH Client should never send a SSH_MSG_KEXDH_REPLY message");
     }
 }

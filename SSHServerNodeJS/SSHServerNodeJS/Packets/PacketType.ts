@@ -35,3 +35,4 @@ export * from "./KexDHInit";
 export * from "./KexDHReply";
 export * from "./NewKeys";
 export * from "./Unimplemented";
+export * from "./Disconnect";

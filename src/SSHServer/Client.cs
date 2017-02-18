@@ -430,6 +430,7 @@ namespace SSHServer
             }
 
             Send(encryptedPayload);
+            this.ConsiderReExchange();
         }
 
         private uint GetSentPacketNumber()

@@ -4,6 +4,7 @@ import { ByteReader } from "./ByteReader";
 import { ByteWriter } from "./ByteWriter";
 import { ExchangeContext } from "./ExchangeContext";
 import * as Packets from "./Packets/PacketType";
+import * as Exceptions from "./SSHServerException";
 
 import net = require("net");
 import util = require("util");
@@ -11,21 +12,29 @@ import crypto = require("crypto");
 
 export class Client {
     private m_Socket: net.Socket;
+    private m_LastBytesRead: number = 0;
+
     private m_HasCompletedProtocolVersionExchange: boolean = false;
     private m_ProtocolVersionExchange: string = "";
-    private m_LastBytesRead: number = 0;
-    private m_KexInitServerToClient: Packets.KexInit = new Packets.KexInit();
 
-    private m_ActiveExchangeContext: ExchangeContext = new ExchangeContext();
-    private m_PendingExchangeContext: ExchangeContext = new ExchangeContext();
+    private m_KexInitServerToClient: Packets.KexInit = new Packets.KexInit();
+    private m_KexInitClientToServer: Packets.KexInit = null;
+    private m_SessionId: Buffer = null;
 
     private m_CurrentSentPacketNumber: number = 0;
     private m_CurrentReceivedPacketNumber: number = 0;
 
+    private m_TotalBytesTransferred: number = 0;
+    private m_KeyTimeout: NodeJS.Timer = null;
+
+    private m_ActiveExchangeContext: ExchangeContext = new ExchangeContext();
+    private m_PendingExchangeContext: ExchangeContext = new ExchangeContext();
+
     constructor(socket: net.Socket) {
         this.m_Socket = socket;
 
-        // todo: Add supported algoritms to m_KexInitServerToClient
+        this.resetKeyTimer();
+
         this.m_KexInitServerToClient.kexAlgorithms = Server.SupportedKexAlgorithms;
         this.m_KexInitServerToClient.serverHostKeyAlgorithms = Server.SupportedHostKeyAlgorithms;
         this.m_KexInitServerToClient.encryptionAlgorithmsClientToServer = Server.SupportedCiphers;
@@ -34,10 +43,7 @@ export class Client {
         this.m_KexInitServerToClient.macAlgorithmsServerToClient = Server.SupportedMACAlgorithms;
         this.m_KexInitServerToClient.compressionAlgorithmsClientToServer = Server.SupportedCompressions;
         this.m_KexInitServerToClient.compressionAlgorithmsServerToClient = Server.SupportedCompressions;
-        // this.m_KexInitServerToClient.languagesClientToServer
-        // this.m_KexInitServerToClient.languagesServerToClient
         this.m_KexInitServerToClient.firstKexPacketFollows = false;
-
 
         this.m_Socket.setNoDelay(true);
 
@@ -69,7 +75,9 @@ export class Client {
                         SSHLogger.logDebug(util.format("Received ProtocolVersionExchange: %s", this.m_ProtocolVersionExchange));
                     }
                 } catch (ex) {
-                    this.disconnect();
+                    this.disconnect(
+                        Exceptions.DisconnectReason.SSH_DISCONNECT_PROTOCOL_VERSION_NOT_SUPPORTED,
+                        "Failed to get the protocol version exchange.");
                     return;
                 }
             }
@@ -81,10 +89,17 @@ export class Client {
                         this.handlePacket(packet);
                         packet = this.readPacket();
                     }
+
+                    this.considerReExchange();
                 } catch (ex) {
-                    SSHLogger.logError(ex);
-                    this.disconnect();
-                    return;
+                    if (ex instanceof Exceptions.SSHServerException) {
+                        let serverEx: Exceptions.SSHServerException = <Exceptions.SSHServerException>ex;
+                        SSHLogger.logError(ex);
+                        this.disconnect(serverEx.reason, serverEx.message);
+                        return;
+                    } else {
+                        throw ex;
+                    }
                 }
             }
         }
@@ -130,12 +145,29 @@ export class Client {
         }
 
         this.sendRaw(payload);
+        this.considerReExchange();
     }
 
-    public disconnect(): void {
+    public disconnect(reason: Exceptions.DisconnectReason, message: string): void {
         if (this.m_Socket != null) {
-            SSHLogger.logInfo("Disconnected from: " + this.m_Socket.remoteAddress);
-            this.m_Socket.destroy();
+            SSHLogger.logInfo(util.format(
+                "Disconnected from: %s - %s - %s",
+                this.m_Socket.remoteAddress,
+                Exceptions.DisconnectReason[reason],
+                message));
+
+            if (reason !== Exceptions.DisconnectReason.None) {
+                try {
+                    let disconnect: Packets.Disconnect = new Packets.Disconnect();
+                    disconnect.reason = reason;
+                    disconnect.description = message;
+                    this.sendPacket(disconnect);
+                } catch (ex) { }
+            }
+
+            try {
+                this.m_Socket.destroy();
+            } catch (ex) { }
             this.m_Socket = null;
         }
     }
@@ -180,11 +212,8 @@ export class Client {
         this.m_ActiveExchangeContext = this.m_PendingExchangeContext;
         this.m_PendingExchangeContext = null;
 
-        // todo: reset re-exchange values
-        // this.m_TotalBytesTransferred = 0;
-
-        // todo: figure out date/time
-        // this.m_KeyTimeout = DateTime.UtcNow.AddHours(1);
+        this.m_TotalBytesTransferred = 0;
+        this.resetKeyTimer();
     }
 
     private sendRaw(data: Buffer): void {
@@ -192,11 +221,16 @@ export class Client {
             return;
         }
 
+        // increase bytes transferred
+        this.m_TotalBytesTransferred += data.byteLength;
+
         this.m_Socket.write(new Buffer(data));
     }
 
     private closeReceived(hadError: boolean): void {
-        this.disconnect();
+        this.disconnect(
+            Exceptions.DisconnectReason.SSH_DISCONNECT_CONNECTION_LOST,
+            "The client disconnected.");
     }
 
     private getIsDataAvailable(): boolean {
@@ -215,11 +249,15 @@ export class Client {
         let buffer: Buffer = this.m_Socket.read(size);
 
         if (buffer === null) {
-            throw new Error("Failed to read from socket.");
+            throw new Exceptions.SSHServerException(
+                Exceptions.DisconnectReason.SSH_DISCONNECT_CONNECTION_LOST,
+                "Failed to read from socket.");
         }
 
         if (buffer.byteLength !== size) {
-            throw new Error("Failed to read from socket.");
+            throw new Exceptions.SSHServerException(
+                Exceptions.DisconnectReason.SSH_DISCONNECT_CONNECTION_LOST,
+                "Failed to read from socket.");
         }
 
         this.m_LastBytesRead += size;
@@ -282,7 +320,8 @@ export class Client {
         //     'packet_length' field itself.
         let packetLength: number = reader.getUInt32();
         if (packetLength > Packets.Packet.MaxPacketSize) {
-            throw new Error(
+            throw new Exceptions.SSHServerException(
+                Exceptions.DisconnectReason.SSH_DISCONNECT_PROTOCOL_ERROR,
                 util.format(
                     "Client tried to send a packet bigger than MaxPacketSize (%d bytes): %d bytes",
                     Packets.Packet.MaxPacketSize,
@@ -306,7 +345,8 @@ export class Client {
         let payloadLength: number = packetLength - paddingLength - 1;
         let fullPacket: Buffer = Buffer.concat([ firstBlock, restOfPacket ]);
 
-        // todo: Track total bytes read
+        // track total bytes read
+        this.m_TotalBytesTransferred += fullPacket.byteLength;
 
         let payload: Buffer = fullPacket.slice(
             Packets.Packet.PacketHeaderSize,
@@ -335,7 +375,9 @@ export class Client {
             let clientMac: Buffer = this.readBytes(this.m_ActiveExchangeContext.macAlgorithmClientToServer.getDigestLength());
             let mac: Buffer = this.m_ActiveExchangeContext.macAlgorithmClientToServer.computeHash(packetNumber, fullPacket);
             if (clientMac.compare(mac) !== 0) {
-                throw new Error("MAC from client is invalid");
+                throw new Exceptions.SSHServerException(
+                    Exceptions.DisconnectReason.SSH_DISCONNECT_MAC_ERROR,
+                    "MAC from client is invalid");
             }
         }
 
@@ -352,6 +394,33 @@ export class Client {
         }
 
         return packet;
+    }
+
+    private considerReExchange(): void {
+        const OneGB: number = (1024 * 1024 * 1024);
+        if (this.m_TotalBytesTransferred > OneGB) {
+            this.reExchangeKeys();
+        }
+    }
+
+    private resetKeyTimer(): void {
+        const MSInOneHour: number = 1000 * 60 * 60;
+
+        if (this.m_KeyTimeout !== null) {
+            clearTimeout(this.m_KeyTimeout);
+        }
+
+        this.m_KeyTimeout = setTimeout(this.reExchangeKeys, MSInOneHour);
+    }
+
+    private reExchangeKeys(): void {
+        // time to get new keys!
+        this.m_TotalBytesTransferred = 0;
+        this.resetKeyTimer();
+
+        SSHLogger.logDebug("Trigger re-exchange from server");
+        this.m_PendingExchangeContext = new ExchangeContext();
+        this.sendPacket(this.m_KexInitServerToClient);
     }
 
     private static createPacket(packetType: Packets.PacketType): Packets.Packet {
