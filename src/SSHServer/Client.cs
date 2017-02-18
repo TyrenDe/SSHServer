@@ -307,6 +307,11 @@ namespace SSHServer
             m_KeyTimeout = DateTime.UtcNow.AddHours(1);
         }
 
+        private void HandleSpecificPacket(Disconnect packet)
+        {
+            this.Disconnect(packet.Reason, packet.Description);
+        }
+
         private byte[] ComputeExchangeHash(IKexAlgorithm kexAlgorithm, byte[] hostKeyAndCerts, byte[] clientExchangeValue, byte[] serverExchangeValue, byte[] sharedSecret)
         {
             // H = hash(V_C || V_S || I_C || I_S || K_S || e || f || K)

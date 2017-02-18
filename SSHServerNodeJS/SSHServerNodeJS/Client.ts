@@ -183,6 +183,9 @@ export class Client {
             case Packets.PacketType.SSH_MSG_NEWKEYS:
                 this.handleNewKeys(<Packets.NewKeys>packet);
                 break;
+            case Packets.PacketType.SSH_MSG_DISCONNECT:
+                this.handleDisconnect(<Packets.Disconnect>packet);
+                break;
             default:
                 SSHLogger.logWarning(util.format("Unhandled packet type: %s", packet.getPacketType()));
                 let unimplemented: Packets.Unimplemented = new Packets.Unimplemented();
@@ -214,6 +217,10 @@ export class Client {
 
         this.m_TotalBytesTransferred = 0;
         this.resetKeyTimer();
+    }
+
+    private handleDisconnect(packet: Packets.Disconnect): void {
+        this.disconnect(packet.reason, packet.description);
     }
 
     private sendRaw(data: Buffer): void {
@@ -431,6 +438,8 @@ export class Client {
                 return new Packets.KexDHInit();
             case Packets.PacketType.SSH_MSG_NEWKEYS:
                 return new Packets.NewKeys();
+            case Packets.PacketType.SSH_MSG_DISCONNECT:
+                return new Packets.Disconnect();
         }
 
         SSHLogger.logDebug(util.format("Unknown PacketType: %s", Packets.PacketType[packetType]));
