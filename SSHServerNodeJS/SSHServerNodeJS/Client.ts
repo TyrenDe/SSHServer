@@ -196,7 +196,33 @@ export class Client {
     }
 
     private handleKexInit(packet: Packets.KexInit): void {
-        SSHLogger.logDebug("WOWO 1!");
+        SSHLogger.logDebug("Received KexInit");
+
+        if (this.m_PendingExchangeContext === null) {
+            SSHLogger.logDebug("Trigger re-exchange from client");
+            this.m_PendingExchangeContext = new ExchangeContext();
+            this.sendPacket(this.m_KexInitServerToClient);
+        }
+
+        this.m_KexInitClientToServer = packet;
+
+        this.m_PendingExchangeContext.kexAlgorithm = packet.pickKexAlgorithm();
+        this.m_PendingExchangeContext.hostKeyAlgorithm = packet.pickHostKeyAlgorithm();
+        this.m_PendingExchangeContext.cipherClientToServer = packet.pickCipherClientToServer();
+        this.m_PendingExchangeContext.cipherServerToClient = packet.pickCipherServerToClient();
+        this.m_PendingExchangeContext.macAlgorithmClientToServer = packet.pickMACAlgorithmClientToServer();
+        this.m_PendingExchangeContext.macAlgorithmServerToClient = packet.pickMACAlgorithmServerToClient();
+        this.m_PendingExchangeContext.compressionClientToServer = packet.pickCompressionAlgorithmClientToServer();
+        this.m_PendingExchangeContext.compressionServerToClient = packet.pickCompressionAlgorithmServerToClient();
+
+        SSHLogger.logDebug(util.format("Selected KexAlgorithm: %s", this.m_PendingExchangeContext.kexAlgorithm.getName()));
+        SSHLogger.logDebug(util.format("Selected HostKeyAlgorithm: %s", this.m_PendingExchangeContext.hostKeyAlgorithm.getName()));
+        SSHLogger.logDebug(util.format("Selected CipherClientToServer: %s", this.m_PendingExchangeContext.cipherClientToServer.getName()));
+        SSHLogger.logDebug(util.format("Selected CipherServerToClient: %s", this.m_PendingExchangeContext.cipherServerToClient.getName()));
+        SSHLogger.logDebug(util.format("Selected MACAlgorithmClientToServer: %s", this.m_PendingExchangeContext.macAlgorithmClientToServer.getName()));
+        SSHLogger.logDebug(util.format("Selected MACAlgorithmServerToClient: %s", this.m_PendingExchangeContext.macAlgorithmServerToClient.getName()));
+        SSHLogger.logDebug(util.format("Selected CompressionClientToServer: %s", this.m_PendingExchangeContext.compressionClientToServer.getName()));
+        SSHLogger.logDebug(util.format("Selected CompressionServerToClient: %s", this.m_PendingExchangeContext.compressionServerToClient.getName()));
     }
 
     private handleKexDHInit(packet: Packets.KexDHInit): void {

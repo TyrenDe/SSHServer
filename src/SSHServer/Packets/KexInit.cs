@@ -185,7 +185,7 @@ namespace SSHServer.Packets
 
             // If no algorithm satisfying all these conditions can be found, the
             // connection fails, and both sides MUST disconnect.
-            throw new SSHServerException(DisconnectReason.SSH_DISCONNECT_KEY_EXCHANGE_FAILED, "Could not find a shared Client-To-Server Compresion Algorithm");
+            throw new SSHServerException(DisconnectReason.SSH_DISCONNECT_KEY_EXCHANGE_FAILED, "Could not find a shared Client-To-Server Compression Algorithm");
         }
 
         public ICompression PickCompressionAlgorithmServerToClient()
