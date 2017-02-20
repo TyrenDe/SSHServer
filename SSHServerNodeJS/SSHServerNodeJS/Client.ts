@@ -595,7 +595,7 @@ export class Client {
             currentHash = kexAlgorithm.computeHash(writer.toBuffer());
 
             currentHashLength = Math.min(currentHash.byteLength, (keySize - keyBufferIndex));
-            currentHash.copy(keyBuffer, 0, keyBufferIndex, currentHashLength);
+            currentHash.copy(keyBuffer, keyBufferIndex, 0, currentHashLength);
 
             keyBufferIndex += currentHashLength;
         }
