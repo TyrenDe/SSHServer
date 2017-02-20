@@ -1,13 +1,16 @@
 {
-  "name": "sshservernodejs",
-  "version": "0.0.1",
-  "description": "An SSH Server written in NodeJS",
-  "main": "app.js",
-  "author": {
-    "name": "tyren"
-  },
-  "dependencies": {
-    "@types/node": "^7.0.5",
-    "sleep2": "^1.0.0"
-  }
+    "name": "sshservernodejs",
+    "version": "0.0.1",
+    "description": "An SSH Server written in NodeJS",
+    "main": "app.js",
+    "author": {
+        "name": "tyren"
+    },
+    "dependencies": {
+        "sleep2": "^1.0.0"
+    },
+    "devDependencies": {
+        "typescript": "^2.1.6",
+        "@types/node": "^7.0.5"
+    }
 }

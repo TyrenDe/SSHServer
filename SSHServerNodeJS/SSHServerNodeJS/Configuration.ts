@@ -1,6 +1,6 @@
-﻿class Key {
+﻿export class Key {
     algorithm: string;
-    key: string;
+    key: any;
 }
 
 export class Configuration {

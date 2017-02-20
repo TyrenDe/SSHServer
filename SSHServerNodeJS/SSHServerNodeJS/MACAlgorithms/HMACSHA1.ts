@@ -1,8 +1,13 @@
 ﻿import { IMACAlgorithm } from "./IMACAlgorithm";
+import * as Exceptions from "../SSHServerException";
+import { ByteWriter } from "../ByteWriter";
 
 import crypto = require("crypto");
 
 export class HMACSHA1 implements IMACAlgorithm {
+    private m_MHAC: crypto.Hmac;
+    private m_Key: Buffer;
+
     constructor() {
     }
 
@@ -23,10 +28,22 @@ export class HMACSHA1 implements IMACAlgorithm {
     }
 
     public setKey(key: Buffer): void {
+        this.m_Key = key;
     }
 
     public computeHash(packetNumber: number, data: Buffer): Buffer {
-        return null;
+        if (this.m_Key === null) {
+            throw new Exceptions.SSHServerException(
+                Exceptions.DisconnectReason.SSH_DISCONNECT_KEY_EXCHANGE_FAILED,
+                "SetKey must be called before attempting to ComputeHash.");
+        }
 
+        let writer: ByteWriter = new ByteWriter();
+        writer.writeUInt32(packetNumber);
+        writer.writeRawBytes(data);
+
+        let hmac: crypto.Hmac = crypto.createHmac("sha1", this.m_Key);
+        hmac.update(writer.toBuffer());
+        return hmac.digest();
     }
 }

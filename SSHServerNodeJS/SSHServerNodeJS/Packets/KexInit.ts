@@ -3,6 +3,7 @@ import { Server } from "../Server";
 import { PacketType } from "./PacketType";
 import { ByteReader } from "../ByteReader";
 import { ByteWriter } from "../ByteWriter";
+import * as Configurations from "../Configuration";
 
 import { IKexAlgorithm } from "../KexAlgorithms/IKexAlgorithm";
 import { DiffieHellmanGroup14SHA1 } from "../KexAlgorithms/DiffieHellmanGroup14SHA1";
@@ -22,6 +23,8 @@ import { NoCompression } from "../Compressions/NoCompression";
 import * as Exceptions from "../SSHServerException";
 
 import crypto = require('crypto');
+
+let config: Configurations.Configuration = require("../sshserver.json");
 
 export class KexInit extends Packet {
     public getPacketType(): PacketType {
@@ -104,8 +107,18 @@ export class KexInit extends Packet {
                 })) {
 
                 switch (algo) {
-                    case "ssh-rsa":
-                        return new SSHRSA();
+                    case "ssh-rsa": {
+                        let configKey: Configurations.Key = config.keys.find((value: Configurations.Key, index: number, object: Configurations.Key[]) => { return (value.algorithm === algo) });
+                        if (configKey === null) {
+                            throw new Exceptions.SSHServerException(
+                                Exceptions.DisconnectReason.SSH_DISCONNECT_KEY_EXCHANGE_FAILED,
+                                "Could not find a configuration for ssh-rsa.");
+                        }
+                        return new SSHRSA(
+                            configKey.key.pem,
+                            new Buffer(configKey.key.modulus, "base64"),
+                            new Buffer(configKey.key.exponent, "base64"));
+                    }
                 }
             }
         }

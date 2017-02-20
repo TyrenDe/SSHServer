@@ -5,6 +5,7 @@ import { ByteWriter } from "./ByteWriter";
 import { ExchangeContext } from "./ExchangeContext";
 import * as Packets from "./Packets/PacketType";
 import * as Exceptions from "./SSHServerException";
+import { IKexAlgorithm } from "./KexAlgorithms/IKexAlgorithm";
 
 import net = require("net");
 import util = require("util");
@@ -98,7 +99,9 @@ export class Client {
                         this.disconnect(serverEx.reason, serverEx.message);
                         return;
                     } else {
-                        throw ex;
+                        SSHLogger.logError(ex);
+                        this.disconnect(Exceptions.DisconnectReason.SSH_DISCONNECT_PROTOCOL_ERROR, ex.message);
+                        return;
                     }
                 }
             }
@@ -226,13 +229,92 @@ export class Client {
     }
 
     private handleKexDHInit(packet: Packets.KexDHInit): void {
-        SSHLogger.logDebug("WOWO 2!");
+        SSHLogger.logDebug("Received KexDHInit");
+
+        if ((this.m_PendingExchangeContext === null) || (this.m_PendingExchangeContext.kexAlgorithm === null)) {
+            throw new Exceptions.SSHServerException(
+                Exceptions.DisconnectReason.SSH_DISCONNECT_PROTOCOL_ERROR,
+                "Server did not receive SSH_MSG_KEX_INIT as expected.");
+        }
+
+        // 1. C generates a random number x (1 < x < q) and computes e = g ^ x mod p.  C sends e to S.
+        // 2. S receives e.  It computes K = e^y mod p
+        let sharedSecret: Buffer = this.m_PendingExchangeContext.kexAlgorithm.decryptKeyExchange(packet.clientValue);
+
+        // 2. S generates a random number y (0 < y < q) and computes f = g ^ y mod p.
+        let serverKeyExchange: Buffer = this.m_PendingExchangeContext.kexAlgorithm.createKeyExchange();
+
+        let hostKey: Buffer = this.m_PendingExchangeContext.hostKeyAlgorithm.createKeyAndCertificatesData();
+
+        // h = hash(V_C || V_S || I_C || I_S || K_S || e || f || K)
+        let exchangeHash: Buffer = this.computeExchangeHash(
+            this.m_PendingExchangeContext.kexAlgorithm,
+            hostKey,
+            packet.clientValue,
+            serverKeyExchange,
+            sharedSecret);
+
+        if (this.m_SessionId === null) {
+            this.m_SessionId = exchangeHash;
+        }
+
+        // initial IV client to server: HASH(K || H || "A" || session_id)
+        // (Here K is encoded as mpint and "A" as byte and session_id as raw
+        // data.  "A" means the single character A, ASCII 65).
+        let clientCipherIV: Buffer = this.computeEncryptionKey(
+            this.m_PendingExchangeContext.kexAlgorithm,
+            exchangeHash,
+            this.m_PendingExchangeContext.cipherClientToServer.getBlockSize(),
+            sharedSecret, "A");
+
+        // initial IV server to client: HASH(K || H || "B" || session_id)
+        let serverCipherIV: Buffer = this.computeEncryptionKey(
+            this.m_PendingExchangeContext.kexAlgorithm,
+            exchangeHash,
+            this.m_PendingExchangeContext.cipherServerToClient.getBlockSize(),
+            sharedSecret, "B");
+
+        // encryption key client to server: HASH(K || H || "C" || session_id)
+        let clientCipherKey: Buffer = this.computeEncryptionKey(
+            this.m_PendingExchangeContext.kexAlgorithm,
+            exchangeHash,
+            this.m_PendingExchangeContext.cipherClientToServer.getKeySize(),
+            sharedSecret, "C");
+
+        // encryption key server to client: HASH(K || H || "D" || session_id)
+        let serverCipherKey: Buffer = this.computeEncryptionKey(
+            this.m_PendingExchangeContext.kexAlgorithm,
+            exchangeHash,
+            this.m_PendingExchangeContext.cipherServerToClient.getKeySize(),
+            sharedSecret, "D");
+
+        // integrity key client to server: HASH(K || H || "E" || session_id)
+        let clientHmacKey: Buffer = this.computeEncryptionKey(
+            this.m_PendingExchangeContext.kexAlgorithm,
+            exchangeHash,
+            this.m_PendingExchangeContext.macAlgorithmClientToServer.getKeySize(),
+            sharedSecret, "E");
+
+        // integrity key server to client: HASH(K || H || "F" || session_id)
+        let serverHmacKey: Buffer = this.computeEncryptionKey(
+            this.m_PendingExchangeContext.kexAlgorithm,
+            exchangeHash,
+            this.m_PendingExchangeContext.macAlgorithmServerToClient.getKeySize(),
+            sharedSecret, "F");
+
+        // set all keys we just generated
+        this.m_PendingExchangeContext.cipherClientToServer.setKey(clientCipherKey, clientCipherIV);
+        this.m_PendingExchangeContext.cipherServerToClient.setKey(serverCipherKey, serverCipherIV);
+        this.m_PendingExchangeContext.macAlgorithmClientToServer.setKey(clientHmacKey);
+        this.m_PendingExchangeContext.macAlgorithmServerToClient.setKey(serverHmacKey);
 
         let reply: Packets.KexDHReply = new Packets.KexDHReply();
-        reply.serverHostKey = new Buffer(256);
-        reply.serverValue = new Buffer(256);
-        reply.signature = new Buffer(256);
+        reply.serverHostKey = hostKey;
+        reply.serverValue = serverKeyExchange;
+        reply.signature = this.m_PendingExchangeContext.hostKeyAlgorithm.createSignatureData(exchangeHash);
+
         this.sendPacket(reply);
+        this.sendPacket(new Packets.NewKeys());
     }
 
     private handleNewKeys(packet: Packets.NewKeys): void {
@@ -454,6 +536,71 @@ export class Client {
         SSHLogger.logDebug("Trigger re-exchange from server");
         this.m_PendingExchangeContext = new ExchangeContext();
         this.sendPacket(this.m_KexInitServerToClient);
+    }
+
+    private computeExchangeHash(
+        kexAlgorithm: IKexAlgorithm,
+        hostKeyAndCerts: Buffer,
+        clientExchangeValue: Buffer,
+        serverExchangeValue: Buffer,
+        sharedSecret: Buffer): Buffer {
+        let writer: ByteWriter = new ByteWriter();
+        writer.writeString(this.m_ProtocolVersionExchange);
+        writer.writeString(Server.ProtocolVersionExchange);
+
+        writer.writeBytes(this.m_KexInitClientToServer.getBytes());
+        writer.writeBytes(this.m_KexInitServerToClient.getBytes());
+        writer.writeBytes(hostKeyAndCerts);
+
+        writer.writeMPInt(clientExchangeValue);
+        writer.writeMPInt(serverExchangeValue);
+        writer.writeMPInt(sharedSecret);
+
+        return kexAlgorithm.computeHash(writer.toBuffer());
+    }
+
+    private computeEncryptionKey(kexAlgorithm: IKexAlgorithm, exchangeHash: Buffer, keySize: number, sharedSecret: Buffer, letter: string): Buffer {
+        // k(X) = HASH(K || H || X || session_id)
+
+        // prepare the buffer
+        let keyBuffer: Buffer = new Buffer(keySize);
+        let keyBufferIndex: number = 0;
+        let currentHashLength: number = 0;
+        let currentHash: Buffer = null;
+
+        // we can stop once we fill the key buffer
+        while (keyBufferIndex < keySize) {
+            let writer: ByteWriter = new ByteWriter();
+            // write "K"
+            writer.writeMPInt(sharedSecret);
+
+            // write "H"
+            writer.writeRawBytes(exchangeHash);
+
+            if (currentHash === null) {
+                // if we haven't done this yet, add the "X" and session_id
+                writer.writeByte(letter.charCodeAt(0));
+                writer.writeRawBytes(this.m_SessionId);
+            } else {
+                // if the key isn't long enough after the first pass, we need to
+                // write the current hash as described here:
+                //      k1 = HASH(K || H || X || session_id)   (X is e.g., "A")
+                //      k2 = HASH(K || H || K1)
+                //      k3 = HASH(K || H || K1 || K2)
+                //      ...
+                //      key = K1 || K2 || K3 || ...
+                writer.writeRawBytes(currentHash);
+            }
+
+            currentHash = kexAlgorithm.computeHash(writer.toBuffer());
+
+            currentHashLength = Math.min(currentHash.byteLength, (keySize - keyBufferIndex));
+            currentHash.copy(keyBuffer, 0, keyBufferIndex, currentHashLength);
+
+            keyBufferIndex += currentHashLength;
+        }
+
+        return keyBuffer;
     }
 
     private static createPacket(packetType: Packets.PacketType): Packets.Packet {

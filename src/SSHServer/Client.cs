@@ -119,6 +119,12 @@ namespace SSHServer
                         Disconnect(ex.Reason, ex.Message);
                         return;
                     }
+                    catch (Exception ex)
+                    {
+                        m_Logger.LogError(ex.Message);
+                        Disconnect(DisconnectReason.SSH_DISCONNECT_PROTOCOL_ERROR, ex.Message);
+                        return;
+                    }
                 }
             }
         }

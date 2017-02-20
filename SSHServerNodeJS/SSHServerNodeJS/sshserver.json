@@ -3,7 +3,11 @@
     "keys": [
         {
             "algorithm": "ssh-rsa",
-            "key": ""
+            "key": {
+                "modulus": "uJJN2jlBoe0haeq/qUvtYLwjJiSy1UIYgtyqYXDeKjLgUU2PRO4kkSyz8VQv2YHwCx7aPy998gGi2Nx9cuvNpRJP6rGW7pLSmxkG9eUn2y4VdU0ZXNtMmXTr7TQat+w3B7YQhgkSjDHiuZ6ymqFAeIx6Zr67GAC1zbYWBObKkiM=",
+                "exponent": "AQAB",
+                "pem": "-----BEGIN PRIVATE KEY-----\nMIICdgIBADANBgkqhkiG9w0BAQEFAASCAmAwggJcAgEAAoGBALiSTdo5QaHtIWnq\nv6lL7WC8IyYkstVCGILcqmFw3ioy4FFNj0TuJJEss/FUL9mB8Ase2j8vffIBotjc\nfXLrzaUST+qxlu6S0psZBvXlJ9suFXVNGVzbTJl06+00GrfsNwe2EIYJEowx4rme\nspqhQHiMema+uxgAtc22FgTmypIjAgMBAAECgYEArQ+xo+6P1c7Mx81vDMS+vTdr\nFbbPYBrrdLiHoXn9NkAiCNnafl11OBJcXun7O80UULkLFrfnNeXG1eRYVEs5s/cq\nBlPNWzEZw1nhwX6DPT1Lj8c2Yv7zKWG+gVA5dr0fcvEtLlgxa0dYkfiky/HD8reo\nHJDzCbKSvMsJLKsh3DECQQDqBfmQ1MocxoaVQSFmjGM1+/90SjhlrFlyGKW1xsww\n8uJvglT+lKbYFfTkGFX8UKGJuxuvOHc6fngqAoQDjZxVAkEAyed8LDdV/AecwJu2\n6jhV9tAgSntL/1pX50N7SlMgEg9DJKTOee7WiqrkvD2lviiA70ni6i9FsNN+pla1\n3pHslwJANH7Enb1t3QiXdfGXOXayZpCxm/duMTh5FAP9YApJEY3aR2M4B6d2ybAb\nL/NZjnDT255yNlr3O9LUx6+qx1VDxQJAb2zZEm3XfieVUpac89XzWyqxJ2m0H1B0\ngqSzPelyIYVawLZTXOd6bzywz1IWTkN8JJLaL/O2ukd99b6U0CgoMQJAJHRYWZYN\neJu/jfKhM5zzewGf4Ly2a62pl0iqN0eIqkt6Wfz8VjTMu0pwR6lR7WNfc/SPC0Zd\n9QTOzJvbAeTEjQ==\n-----END PRIVATE KEY-----"
+            }
         }
     ]
 }

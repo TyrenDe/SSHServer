@@ -15,7 +15,7 @@ namespace SSHServer.Packets
             }
         }
 
-        public byte[] ClientValue { get; private set; }
+        public byte[] ClientValue { get; set; }
 
         protected override void InternalGetBytes(ByteWriter writer)
         {
