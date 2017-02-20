@@ -3,7 +3,8 @@
 import crypto = require("crypto");
 
 export class TripleDESCBC implements ICipher {
-    private m_3DES: crypto.Cipher;
+    private m_Encryptor: crypto.Cipher;
+    private m_Decryptor: crypto.Decipher;
 
     public getName(): string {
         return "3des-cbc";
@@ -18,14 +19,18 @@ export class TripleDESCBC implements ICipher {
     }
 
     public encrypt(data: Buffer): Buffer {
-        return this.m_3DES.update(data);
+        return this.m_Encryptor.update(data);
     }
 
     public decrypt(data: Buffer): Buffer {
-        return this.m_3DES.update(data);
+        return this.m_Decryptor.update(data);
     }
 
     public setKey(key: Buffer, iv: Buffer): void {
-        this.m_3DES = crypto.createCipheriv("des3", key, iv);
+        this.m_Encryptor = crypto.createCipheriv("DES-EDE3-CBC", key, iv);
+        this.m_Encryptor.setAutoPadding(false);
+
+        this.m_Decryptor = crypto.createDecipheriv("DES-EDE3-CBC", key, iv);
+        this.m_Decryptor.setAutoPadding(false);
     }
 }
