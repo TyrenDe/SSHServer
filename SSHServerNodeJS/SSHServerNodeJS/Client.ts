@@ -72,10 +72,11 @@ export class Client {
                 try {
                     this.readProtocolVersionExchange();
                     if (this.m_HasCompletedProtocolVersionExchange) {
-                        // todo: Consider processing Protocol Version Exchange for validity
                         SSHLogger.logDebug(util.format("Received ProtocolVersionExchange: %s", this.m_ProtocolVersionExchange));
+                        this.validateProtocolVersionExchange();
                     }
                 } catch (ex) {
+                    SSHLogger.logError(ex);
                     this.disconnect(
                         Exceptions.DisconnectReason.SSH_DISCONNECT_PROTOCOL_VERSION_NOT_SUPPORTED,
                         "Failed to get the protocol version exchange.");
@@ -601,6 +602,26 @@ export class Client {
         }
 
         return keyBuffer;
+    }
+
+    private validateProtocolVersionExchange(): void {
+        // https://tools.ietf.org/html/rfc4253#section-4.2
+        // -   SSH-protoversion-softwareversion SP comments
+        let pveParts: string[] = this.m_ProtocolVersionExchange.split(" ");
+        if (pveParts.length == 0) {
+            throw new Error("Invalid Protocol Version Exchange was received - No Data");
+        }
+
+        let versionParts: string[] = pveParts[0].split("-");
+        if (versionParts.length < 3) {
+            throw new Error(util.format("Invalid Protocol Version Exchange was received - Not enough dashes - %s", pveParts[0]));
+        }
+
+        if (versionParts[1] !== "2.0") {
+            throw new Error(util.format("Invalid Protocol Version Exchange was received - Unsupported Version - %s", versionParts[1]));
+        }
+
+        // if we get here, all is well!
     }
 
     private static createPacket(packetType: Packets.PacketType): Packets.Packet {

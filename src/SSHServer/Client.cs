@@ -87,13 +87,13 @@ namespace SSHServer
                         ReadProtocolVersionExchange();
                         if (m_HasCompletedProtocolVersionExchange)
                         {
-                            // TODO: Consider processing Protocol Version Exchange for validity
                             m_Logger.LogDebug($"Received ProtocolVersionExchange: {m_ProtocolVersionExchange}");
                             ValidateProtocolVersionExchange();
                         }
                     }
-                    catch (Exception)
+                    catch (Exception ex)
                     {
+                        m_Logger.LogError(ex.Message);
                         Disconnect(DisconnectReason.SSH_DISCONNECT_PROTOCOL_VERSION_NOT_SUPPORTED, "Failed to get the protocol version exchange.");
                         return;
                     }
